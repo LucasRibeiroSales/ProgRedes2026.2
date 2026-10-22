@@ -1,0 +1,83 @@
+"""Consulta o tempo atual de uma cidade usando as APIs do OpenWeatherMap."""
+import os
+from datetime import datetime, timedelta, timezone
+
+import requests
+
+CHAVE = os.environ.get("OWM_API_KEY")
+URL_GEO = "https://api.openweathermap.org/geo/1.0/direct"
+URL_TEMPO = "https://api.openweathermap.org/data/2.5/weather"
+
+
+def buscar_cidades(nome, limite=5):
+    """Converte o nome da cidade em uma lista de locais com latitude e longitude."""
+    resposta = requests.get(URL_GEO, params={"q": nome, "limit": limite, "appid": CHAVE}, timeout=10)
+    resposta.raise_for_status()
+    return resposta.json()  # lista (vazia se nada for encontrado)
+
+
+def tempo_atual(lat, lon):
+    """Obtém o tempo atual nas coordenadas informadas."""
+    parametros = {"lat": lat, "lon": lon, "appid": CHAVE, "units": "metric", "lang": "pt_br"}
+    resposta = requests.get(URL_TEMPO, params=parametros, timeout=10)
+    resposta.raise_for_status()
+    return resposta.json()
+
+
+def hora_local(timestamp, fuso_segundos):
+    """Converte um horário Unix (UTC) para a hora local da cidade."""
+    fuso = timezone(timedelta(seconds=fuso_segundos))
+    return datetime.fromtimestamp(timestamp, fuso).strftime("%H:%M")
+
+
+def exibir(local, dados):
+    estado = f"{local['state']}, " if local.get("state") else ""
+    nome = local.get("local_names", {}).get("pt", local["name"])
+    principal, vento = dados["main"], dados["wind"]
+    print(f"\n{nome} ({estado}{local['country']})")
+    print(f"  Condição:    {dados['weather'][0]['description'].capitalize()}")
+    print(f"  Temperatura: {principal['temp']:.1f} °C (sensação de {principal['feels_like']:.1f} °C)")
+    print(f"  Mín./máx.:   {principal['temp_min']:.1f} °C / {principal['temp_max']:.1f} °C")
+    print(f"  Umidade:     {principal['humidity']}%")
+    print(f"  Vento:       {vento['speed'] * 3.6:.1f} km/h")
+    print(f"  Nascer/pôr do sol: {hora_local(dados['sys']['sunrise'], dados['timezone'])} / "
+          f"{hora_local(dados['sys']['sunset'], dados['timezone'])}")
+
+
+def escolher(locais):
+    """Se houver várias cidades com o mesmo nome, pede ao usuário que escolha uma."""
+    if len(locais) == 1:
+        return locais[0]
+    print("Foram encontradas várias cidades:")
+    for i, l in enumerate(locais, start=1):
+        print(f"  {i}. {l['name']} - {l.get('state', '')} ({l['country']})")
+    while True:
+        opcao = input("Escolha o número da cidade: ")
+        if opcao.isdigit() and 1 <= int(opcao) <= len(locais):
+            return locais[int(opcao) - 1]
+        print("Opção inválida.")
+
+
+def main():
+    if not CHAVE:
+        raise SystemExit("Defina a variável de ambiente OWM_API_KEY com a sua chave.")
+    nome = input("Cidade (ex.: Natal ou Natal,BR): ").strip()
+    try:
+        locais = buscar_cidades(nome)
+        if not locais:
+            print("Cidade não encontrada.")
+            return
+        local = escolher(locais)
+        exibir(local, tempo_atual(local["lat"], local["lon"]))
+    except requests.exceptions.HTTPError as erro:
+        codigo = erro.response.status_code
+        mensagens = {401: "Chave inválida ou ainda não ativada (aguarde até 2 horas após o cadastro).",
+                     404: "Recurso não encontrado. Verifique o nome da cidade e a URL.",
+                     429: "Limite de requisições excedido. Aguarde e tente novamente."}
+        print(mensagens.get(codigo, f"Erro HTTP {codigo}"))
+    except requests.exceptions.RequestException:
+        print("Não foi possível conectar ao OpenWeatherMap. Verifique a Internet.")
+
+
+if __name__ == "__main__":
+    main()
