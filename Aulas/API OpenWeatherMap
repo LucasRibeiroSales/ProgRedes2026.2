@@ -1,0 +1,21 @@
+import os
+
+import requests
+
+CHAVE = os.environ["OWM_API_KEY"]   # sua API key do OpenWeatherMap
+URL = "https://api.openweathermap.org/data/2.5/weather"
+
+parametros = {
+    "q": "Mossoró,BR",      # cidade,código do país (ISO 3166)
+    "appid": CHAVE,
+    "units": "metric",    # temperaturas em °C e vento em m/s
+    "lang": "pt_br",      # descrição do tempo em português
+}
+
+resposta = requests.get(URL, params=parametros, timeout=10)
+print("Status:", resposta.status_code)
+
+dados = resposta.json()
+print("Cidade:", dados["name"], "-", dados["sys"]["country"])
+print("Temperatura:", dados["main"]["temp"], "°C")
+print("Condição:", dados["weather"][0]["description"])
