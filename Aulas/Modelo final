@@ -1,0 +1,167 @@
+import os
+from datetime import datetime, timedelta, timezone
+import requests
+
+CHAVE = os.environ.get("OWM_API_KEY")
+URL_GEO = "https://api.openweathermap.org/geo/1.0/direct"
+URL_TEMPO = "https://api.openweathermap.org/data/2.5/weather"
+URL_PREVISAO = "https://api.openweathermap.org/data/2.5/forecast"
+
+
+
+def buscar_cidades(nome, limite=5):
+    """Converte o nome da cidade em uma lista de locais com latitude e longitude."""
+    resposta = requests.get(URL_GEO, params={"q": nome, "limit": limite, "appid": CHAVE}, timeout=10)
+    resposta.raise_for_status()
+    return resposta.json()
+
+
+def tempo_atual(lat, lon):
+    """Obtém o tempo atual nas coordenadas informadas."""
+    parametros = {"lat": lat, "lon": lon, "appid": CHAVE, "units": "metric", "lang": "pt_br"}
+    resposta = requests.get(URL_TEMPO, params=parametros, timeout=10)
+    resposta.raise_for_status()
+    return resposta.json()
+
+
+def previsao_5_dias(lat, lon):
+    """Obtém a previsão de 5 dias com passos de 3 horas."""
+    parametros = {"lat": lat, "lon": lon, "appid": CHAVE, "units": "metric", "lang": "pt_br"}
+    resposta = requests.get(URL_PREVISAO, params=parametros, timeout=10)
+    resposta.raise_for_status()
+    return resposta.json()
+
+
+def hora_local(timestamp, fuso_segundos):
+    """Converte um horário Unix (UTC) para a hora local da cidade."""
+    fuso = timezone(timedelta(seconds=fuso_segundos))
+    return datetime.fromtimestamp(timestamp, fuso).strftime("%H:%M")
+
+
+def analisar_extremos(lista_consultadas):
+    """Recebe uma lista de dados e informa a cidade mais quente e a mais úmida."""
+    if not lista_consultadas:
+        return
+
+    mais_quente = max(lista_consultadas, key=lambda c: c["dados"]["main"]["temp"])
+    mais_umida = max(lista_consultadas, key=lambda c: c["dados"]["main"]["humidity"])
+
+    print("\n" + "="*40)
+    print("📊 RESUMO DAS CIDADES CONSULTADAS NESSA SESSÃO:")
+    print(f"🔥 Mais Quente: {mais_quente['nome']} ({mais_quente['dados']['main']['temp']:.1f} °C)")
+    print(f"💧 Mais Úmida:  {mais_umida['nome']} ({mais_umida['dados']['main']['humidity']}%)")
+    print("="*40)
+
+
+def exibir_previsao_amanha(dados_previsao):
+    """Filtra e exibe as previsões a cada 3 horas apenas para o dia seguinte."""
+    print("\n  📅 Previsão para amanhã (a cada 3h):")
+    
+    # Descobre a data de amanhã com base no fuso da cidade consultada
+    fuso_segundos = dados_previsao["city"]["timezone"]
+    fuso = timezone(timedelta(seconds=fuso_segundos))
+    hoje_local = datetime.now(fuso)
+    amanha_local = (hoje_local + timedelta(days=1)).date()
+
+    for item in dados_previsao["list"]:
+        # Converte a hora do bloco da previsão para o fuso local da cidade
+        data_bloco = datetime.fromtimestamp(item["dt"], fuso)
+        
+        if data_bloco.date() == amanha_local:
+            hora = data_bloco.strftime("%H:%M")
+            temp = item["main"]["temp"]
+            desc = item["weather"][0]["description"].capitalize()
+            print(f"    🕒 {hora} -> {temp:.1f} °C | {desc}")
+
+
+def exibir(local, dados):
+    estado = f"{local['state']}, " if local.get("state") else ""
+    nome = local.get("local_names", {}).get("pt", local["name"])
+    principal, vento = dados["main"], dados["wind"]
+    
+    # REQUISITO 4: Link do Ícone do tempo
+    id_icone = dados["weather"][0]["icon"]
+    url_icone = f"https://openweathermap.org/img/wn/{id_icone}@2x.png"
+
+    print(f"\n{nome} ({estado}{local['country']})")
+    print(f"  Condição:    {dados['weather'][0]['description'].capitalize()}")
+    print(f"  Ícone/Imagem: {url_icone}")
+    print(f"  Temperatura: {principal['temp']:.1f} °C (sensação de {principal['feels_like']:.1f} °C)")
+    print(f"  Mín./máx.:   {principal['temp_min']:.1f} °C / {principal['temp_max']:.1f} °C")
+    print(f"  Umidade:     {principal['humidity']}%")
+    print(f"  Vento:       {vento['speed'] * 3.6:.1f} km/h")
+    print(f"  Nascer/pôr do sol: {hora_local(dados['sys']['sunrise'], dados['timezone'])} / "
+          f"{hora_local(dados['sys']['sunset'], dados['timezone'])}")
+
+
+def escolher(locais):
+    if len(locais) == 1:
+        return locais[0]
+    print("Foram encontradas várias cidades:")
+    for i, l in enumerate(locais, start=1):
+        print(f"  {i}. {l['name']} - {l.get('state', '')} ({l['country']})")
+    while True:
+        opcao = input("Escolha o número da cidade: ")
+        if opcao.isdigit() and 1 <= int(opcao) <= len(locais):
+            return locais[int(opcao) - 1]
+        print("Opção inválida.")
+
+
+def main():
+    if not CHAVE:
+        raise SystemExit("Defina a variável de ambiente OWM_API_KEY com a sua chave.")
+    
+    # Lista para salvar o histórico e analisar os extremos no final
+    historico_sessao = []
+
+    # REQUISITO 1: Loop contínuo até digitar "sair"
+    while True:
+        print("\n" + "-"*40)
+        nome = input("Digite uma cidade (ou 'sair' para encerrar): ").strip()
+        
+        if nome.lower() == "sair":
+            break
+            
+        if not nome:
+            continue
+
+        try:
+            locais = buscar_cidades(nome)
+            if not locais:
+                print("Cidade não encontrada.")
+                continue
+                
+            local = escolher(locais)
+            
+            # Busca tempo atual
+            dados_atuais = tempo_atual(local["lat"], local["lon"])
+            
+            # Salva no histórico para o Requisito 2
+            nome_pt = local.get("local_names", {}).get("pt", local["name"])
+            historico_sessao.append({"nome": nome_pt, "dados": dados_atuais})
+            
+            # Exibe o tempo atual com a URL do ícone (Requisito 4)
+            exibir(local, dados_atuais)
+            
+            # REQUISITO 3: Busca e exibe previsão de 3h em 3h para amanhã
+            dados_previsao = previsao_5_dias(local["lat"], local["lon"])
+            exibir_previsao_amanha(dados_previsao)
+
+        except requests.exceptions.HTTPError as erro:
+            codigo = erro.response.status_code
+            mensagens = {401: "Chave inválida ou ainda não ativada.",
+                         404: "Recurso não encontrado.",
+                         429: "Limite de requisições excedido."}
+            print(mensagens.get(codigo, f"Erro HTTP {codigo}"))
+        except ValueError as erro_json:
+            print("Erro ao ler os dados do servidor. Resposta Inválida.")
+        except requests.exceptions.RequestException as erro_real:
+            print("Erro de conexão detalhado:", erro_real)
+
+    # REQUISITO 2: Ao sair, exibe a função comparadora de extremos
+    analisar_extremos(historico_sessao)
+    print("\nPrograma encerrado. Até logo!")
+
+
+if __name__ == "__main__":
+    main()
