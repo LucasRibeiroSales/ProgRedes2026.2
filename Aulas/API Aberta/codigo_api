@@ -1,0 +1,133 @@
+import requests
+
+# URL base mantida conforme o PDF (seção 1)
+BASE_URL = "https://pokeapi.co/api/v2"
+
+
+# Função auxiliar de busca seguindo a mesma estrutura do item 1.4 do PDF
+def buscar_pokemon(nome):
+    """Busca dados de um Pokémon específico e trata erros comuns."""
+    url = f"{BASE_URL}/pokemon/{nome.strip().lower()}"
+    try:
+        resposta = requests.get(url, timeout=10)
+        resposta.raise_for_status()  # Lança exceção se status for 4xx ou 5xx
+        return resposta.json()
+    except requests.exceptions.HTTPError:
+        if resposta.status_code == 404:
+            print(f"Pokémon '{nome}' não encontrado.")
+        else:
+            print(f"Erro HTTP: {resposta.status_code}")
+    except requests.exceptions.Timeout:
+        print("A API demorou demais para responder.")
+    except requests.exceptions.ConnectionError:
+        print("Falha de conexão. Verifique sua Internet.")
+    return None
+
+
+# ==========================================
+# 1. Comparador NOVO
+# ==========================================
+def operacao_comparador():
+    print("--- 1. COMPARADOR DE SPEED ---")
+    nome1 = input("Digite o nome do primeiro Pokémon: ")
+    nome2 = input("Digite o nome do segundo Pokémon: ")
+
+    dados1 = buscar_pokemon(nome1)
+    dados2 = buscar_pokemon(nome2)
+
+    if dados1 and dados2:
+        # Navegando nos 'stats' para encontrar o valor do atributo 'speed'
+        speed1 = None
+        speed2 = None
+
+        for s in dados1["stats"]:
+            if s["stat"]["name"] == "speed":
+                speed1 = s["base_stat"]
+
+        for s in dados2["stats"]:
+            if s["stat"]["name"] == "speed":
+                speed2 = s["base_stat"]
+
+        print(f"\n{dados1['name'].title()} - Speed: {speed1}")
+        print(f"{dados2['name'].title()} - Speed: {speed2}")
+
+        if speed1 > speed2:
+            print(
+                f"\nResultado: {dados1['name'].title()} é mais rápido que {dados2['name'].title()}!"
+            )
+        elif speed2 > speed1:
+            print(
+                f"\nResultado: {dados2['name'].title()} é mais rápido que {dados1['name'].title()}!"
+            )
+        else:
+            print(
+                f"\nResultado: Ambos têm a mesma velocidade de Speed ({speed1})!"
+            )
+
+
+# ==========================================
+# 2. Por Tipo
+# ==========================================
+def operacao_por_tipo():
+    print("\n--- 2. OS 10 PRIMEIROS POKÉMON DO TIPO ELECTRIC ---")
+    url = f"{BASE_URL}/type/electric"
+
+    try:
+        resposta = requests.get(url, timeout=10)
+        resposta.raise_for_status()
+        dados = resposta.json()
+
+        # Conforme a dica e o PDF: dados["pokemon"][i]["pokemon"]["name"]
+        pokemons_eletricos = dados["pokemon"]
+
+        # Pegando apenas os 10 primeiros itens usando fatiamento (slice)
+        para_exibir = pokemons_eletricos[:10]
+
+        for i, item in enumerate(para_exibir, 1):
+            nome_pokemon = item["pokemon"]["name"]
+            print(f"{i}. {nome_pokemon.title()}")
+
+    except requests.exceptions.RequestException as e:
+        print(f"Erro ao consultar o tipo electric: {e}")
+
+
+# ==========================================
+# 3. Paginação
+# ==========================================
+def operacao_paginacao():
+    print("\n--- 3. PAGINAÇÃO (PRIMEIROS 60 POKÉMON REUNIDOS) ---")
+
+    # Inicia com a URL base da listagem
+    url_atual = f"{BASE_URL}/pokemon"
+    nomes_acumulados = []
+
+    # Segue navegando pelo campo 'next' até atingir ou ultrapassar 60 nomes
+    while url_atual and len(nomes_acumulados) < 60:
+        try:
+            resposta = requests.get(url_atual, timeout=10)
+            resposta.raise_for_status()
+            pagina = resposta.json()
+
+            # Extrai os nomes da página atual e adiciona à lista acumulada
+            for item in pagina["results"]:
+                nomes_acumulados.append(item["name"])
+
+            # Atualiza para a URL da próxima página apontada pelo campo 'next'
+            url_atual = pagina["next"]
+
+        except requests.exceptions.RequestException as e:
+            print(f"Erro ao paginar dados: {e}")
+            break
+
+    # Garante que exibirá exatamente 60 (caso a página retorne itens a mais)
+    nomes_finais = nomes_acumulados[:60]
+
+    for i, nome in enumerate(nomes_finais, 1):
+        print(f"{i:02d}. {nome.title()}")
+
+
+# Execução do script
+if __name__ == "__main__":
+    operacao_comparador()
+    operacao_por_tipo()
+    operacao_paginacao()
