@@ -1,0 +1,27 @@
+import os
+
+import requests
+
+BASE = "https://api.restcountries.com/countries/v5"
+
+chave = os.environ["RESTCOUNTRIES_KEY"]
+cabecalhos = {"Authorization": f"Bearer {chave}"}
+parametros = {
+    "response_fields": "names.common,capitals,population,currencies,languages,region,borders"
+}
+
+resposta = requests.get(f"{BASE}/codes.alpha_2/BR", headers=cabecalhos,
+                        params=parametros, timeout=10)
+resposta.raise_for_status()
+pais = resposta.json()["data"]["objects"][0]
+
+capital = pais["capitals"][0]["name"] if pais["capitals"] else "-"
+moedas = [f"{m['name']} ({m['code']})" for m in pais["currencies"]]
+idiomas = [i["name"] for i in pais["languages"]]
+
+print("País:", pais["names"]["common"])
+print("Capital:", capital)
+print(f"População: {pais['population']:,}".replace(",", "."))
+print("Moedas:", ", ".join(moedas))
+print("Idiomas:", ", ".join(idiomas))
+print("Fronteiras:", ", ".join(pais["borders"]))
