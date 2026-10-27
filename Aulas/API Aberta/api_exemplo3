@@ -1,0 +1,14 @@
+import requests
+
+url = "https://pokeapi.co/api/v2/pokemon"
+parametros = {"limit": 10, "offset": 0}
+
+resposta = requests.get(url, params=parametros, timeout=10)
+resposta.raise_for_status()
+pagina = resposta.json()
+
+print(resposta.url)
+print("Total de Pokémon:", pagina["count"])
+for item in pagina["results"]:
+    print("-", item["name"])
+print("Próxima página:", pagina["next"])
