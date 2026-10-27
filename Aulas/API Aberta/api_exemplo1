@@ -1,0 +1,9 @@
+import requests
+
+url = "https://pokeapi.co/api/v2/pokemon/pikachu"
+
+resposta = requests.get(url, timeout=10)
+
+print(resposta.status_code)
+print(resposta.headers["Content-Type"])
+print(len(resposta.text), "caracteres")
