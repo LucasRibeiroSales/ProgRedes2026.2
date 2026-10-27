@@ -1,0 +1,20 @@
+import requests
+
+resposta = requests.get("https://pokeapi.co/api/v2/pokemon/blastoise", timeout=10)
+resposta.raise_for_status()
+dados = resposta.json()
+
+# height vem em decímetros e weight em hectogramas
+altura_m = dados["height"] / 10
+peso_kg = dados["weight"] / 10
+
+tipos = [t["type"]["name"] for t in dados["types"]]
+habilidades = [h["ability"]["name"] for h in dados["abilities"]]
+
+print(f"#{dados['id']} {dados['name'].title()}")
+print(f"Altura: {altura_m} m | Peso: {peso_kg} kg")
+print("Tipos:", ", ".join(tipos))
+print("Habilidades:", ", ".join(habilidades))
+print("Atributos base:")
+for s in dados["stats"]:
+    print(f"  {s['stat']['name']:<16} {s['base_stat']:>3}")
