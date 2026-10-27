@@ -1,0 +1,7 @@
+import requests
+
+url = "https://api.restcountries.com/countries/v5/codes.alpha_2/BR"
+resposta = requests.get(url, timeout=10)
+
+print(resposta.status_code)
+print(resposta.json())
