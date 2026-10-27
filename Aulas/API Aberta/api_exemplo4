@@ -1,0 +1,27 @@
+import requests
+
+BASE = "https://pokeapi.co/api/v2"
+
+
+def buscar_pokemon(nome):
+    url = f"{BASE}/pokemon/{nome.strip().lower()}"
+    try:
+        resposta = requests.get(url, timeout=10)
+        resposta.raise_for_status()
+        return resposta.json()
+    except requests.exceptions.HTTPError:
+        if resposta.status_code == 404:
+            print(f"Pokémon '{nome}' não encontrado.")
+        else:
+            print("Erro HTTP:", resposta.status_code)
+    except requests.exceptions.Timeout:
+        print("A API demorou demais para responder.")
+    except requests.exceptions.ConnectionError:
+        print("Falha de conexão. Verifique sua Internet.")
+    return None
+
+
+for nome in ["Charizard", "pikachuu"]:
+    dados = buscar_pokemon(nome)
+    if dados:
+        print(dados["name"], "->", dados["id"])
