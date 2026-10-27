@@ -1,0 +1,14 @@
+import requests
+
+url = "https://api.restcountries.com/countries/v5/codes.alpha_2/BR"
+cabecalhos = {"Authorization": "Bearer rc_live_demo"}
+
+resposta = requests.get(url, headers=cabecalhos, timeout=10)
+resposta.raise_for_status()
+corpo = resposta.json()
+
+print(corpo.keys())
+print(corpo["data"].keys())
+
+pais = corpo["data"]["objects"][0]
+print(pais["names"]["common"], "-", pais["capitals"][0]["name"])
