@@ -1,0 +1,16 @@
+#comando powershell para salvar a chave e não aparecer no código
+
+$env:RESTCOUNTRIES_KEY = "sua chave aqui"
+
+#chave
+rc_live_f2ea5b344b784237b55cb16657adc6ca
+
+
+#formato em python
+
+import requests
+response = requests.get(
+  'https://api.restcountries.com/countries/v5?q=canada',
+  headers={'Authorization': 'Bearer rc_live_f2ea5b344b784237b55cb16657adc6ca'}
+)
+data = response.json()
