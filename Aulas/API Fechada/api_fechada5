@@ -1,0 +1,43 @@
+import os
+
+import requests
+
+BASE = "https://api.restcountries.com/countries/v5"
+
+
+def criar_sessao():
+    chave = os.environ.get("RESTCOUNTRIES_KEY")
+    if not chave:
+        raise SystemExit("Defina a variável de ambiente RESTCOUNTRIES_KEY.")
+    sessao = requests.Session()
+    sessao.headers["Authorization"] = f"Bearer {chave}"
+    return sessao
+
+
+def consultar(sessao, caminho, **parametros):
+    try:
+        resposta = sessao.get(f"{BASE}/{caminho}", params=parametros, timeout=10)
+    except requests.exceptions.RequestException as erro:
+        print(f"Falha de comunicação: {type(erro).__name__}")
+        return []
+
+    if resposta.ok:
+        return resposta.json()["data"]["objects"]
+
+    try:
+        mensagem = resposta.json()["errors"][0]["message"]
+    except (ValueError, KeyError, IndexError):
+        mensagem = resposta.reason
+
+    if resposta.status_code == 401:
+        print("Chave inválida ou ausente:", mensagem)
+    elif resposta.status_code == 429:
+        print("Limite de requisições atingido. Aguarde alguns segundos.")
+    else:
+        print(f"Erro {resposta.status_code}: {mensagem}")
+    return []
+
+
+sessao = criar_sessao()
+paises = consultar(sessao, "currencies/EUR", response_fields="names.common", limit=100)
+print(len(paises), "países usam o euro")
