@@ -1,0 +1,26 @@
+import os
+
+import requests
+
+BASE = "https://api.restcountries.com/countries/v5"
+
+sessao = requests.Session()
+sessao.headers.update({
+    "Authorization": f"Bearer {os.environ['RESTCOUNTRIES_KEY']}",
+    "Accept": "application/json",
+})
+
+# países da América do Sul (filtro por propriedade), apenas nome e população
+parametros = {
+    "subregion": "South America",
+    "response_fields": "names.common,population",
+    "limit": 100,
+}
+resposta = sessao.get(BASE, params=parametros, timeout=10)
+resposta.raise_for_status()
+corpo = resposta.json()["data"]
+
+print("Encontrados:", corpo["meta"]["total"])
+mais_populosos = sorted(corpo["objects"], key=lambda p: p["population"], reverse=True)
+for pais in mais_populosos[:5]:
+    print(f"{pais['names']['common']:<12} {pais['population']:>13,}")
