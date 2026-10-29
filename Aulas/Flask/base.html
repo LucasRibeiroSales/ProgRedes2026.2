@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <title>Monitoramento - {% block titulo %}{% endblock %}</title>
+  <style>
+    body  { font-family: Arial, sans-serif; max-width: 900px; margin: 20px auto; padding: 0 10px; }
+    nav   { background: #1f5f8b; padding: 10px; border-radius: 4px; }
+    nav a { color: white; margin-right: 15px; text-decoration: none; }
+    table { border-collapse: collapse; width: 100%; margin-top: 15px; }
+    th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+    th    { background: #eef3f7; }
+    .aviso { background: #fff3cd; border: 1px solid #e0c060; padding: 8px; margin-top: 10px; }
+    label { display: block; margin-top: 10px; }
+    label input { display: block; }
+    input { padding: 5px; width: 300px; }
+    button { padding: 5px 12px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="{{ url_for('pagina_inicial') }}">Computadores</a>
+    {% if session.logado %}
+      <a href="{{ url_for('novo_computador') }}">+ Novo</a>
+      <a href="{{ url_for('logout') }}">Sair</a>
+    {% else %}
+      <a href="{{ url_for('login') }}">Entrar</a>
+    {% endif %}
+  </nav>
+
+  {% for mensagem in get_flashed_messages() %}
+    <div class="aviso">{{ mensagem }}</div>
+  {% endfor %}
+
+  {% block conteudo %}{% endblock %}
+</body>
+</html>

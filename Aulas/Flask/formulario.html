@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block titulo %}{{ titulo }}{% endblock %}
+
+{% block conteudo %}
+  <h1>{{ titulo }}</h1>
+
+  <form method="post">
+    <label>Nome
+      <input type="text" name="nome" value="{{ dados.nome }}" required>
+    </label>
+    <label>Endereço IP
+      <input type="text" name="ip" value="{{ dados.ip }}" placeholder="192.168.0.10" required>
+    </label>
+    <label>Endereço MAC
+      <input type="text" name="mac" value="{{ dados.mac }}" placeholder="AA:BB:CC:DD:EE:FF" required>
+    </label>
+    <button type="submit">Salvar</button>
+    <a href="{{ url_for('pagina_inicial') }}">Cancelar</a>
+  </form>
+{% endblock %}
